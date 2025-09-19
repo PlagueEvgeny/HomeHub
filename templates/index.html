@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Arduino Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .indicator { width:16px; height:16px; border-radius:50%; display:inline-block; margin-left:5px; }
+  </style>
+</head>
+<body>
+<section class="section">
+  <div class="container">
+    <h1 class="title has-text-centered">Arduino Dashboard</h1>
+
+    <!-- USB -->
+    <div class="box">
+      <h2 class="subtitle">USB порт</h2>
+      <div class="field has-addons">
+        <div class="control">
+          <div class="select">
+            <select id="portSelect"></select>
+          </div>
+        </div>
+        <div class="control">
+          <button class="button is-link" onclick="connectPort()">Подключиться</button>
+        </div>
+        <div class="control">
+          <button class="button is-danger" onclick="disconnectUSB()">Отключить USB</button>
+        </div>
+      </div>
+      <div id="usbStatus" class="mb-2">Статус: не подключено</div>
+      <pre class="box has-background-light" id="usbLog" style="height:150px; overflow:auto;"></pre>
+    </div>
+
+    <!-- Актуаторы -->
+    <div class="columns is-multiline">
+      <div class="column is-one-third">
+        <div class="card">
+          <header class="card-header">
+            <p class="card-header-title">LED</p>
+          </header>
+          <div class="card-content">
+            <button class="button is-success mb-2" onclick="send('LED_ON')">ON</button>
+            <button class="button is-dark mb-2" onclick="send('LED_OFF')">OFF</button>
+            <div>Состояние: <span id="ledIndicator" class="indicator" style="background:red;"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="column is-one-third">
+        <div class="card">
+          <header class="card-header">
+            <p class="card-header-title">Серво</p>
+          </header>
+          <div class="card-content">
+            <input id="servoRange" class="slider is-fullwidth is-info" type="range" min="0" max="180" value="90" oninput="setServo(this.value)">
+            <div>Угол: <span id="servoAngle">90</span>°</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="column is-one-third">
+        <div class="card">
+          <header class="card-header">
+            <p class="card-header-title">Buzzer</p>
+          </header>
+          <div class="card-content">
+            <button class="button is-warning mb-2" onclick="send('BUZZER_ON')">ON</button>
+            <button class="button is-dark mb-2" onclick="send('BUZZER_OFF')">OFF</button>
+            <div>Состояние: <span id="buzzerIndicator" class="indicator" style="background:red;"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Датчики -->
+    <div class="columns is-multiline mt-5">
+      <div class="column is-one-third">
+        <div class="card">
+          <header class="card-header">
+            <p class="card-header-title">DHT11</p>
+          </header>
+          <div class="card-content">
+            <p>Температура: <span id="tempValue">--</span>°C</p>
+            <p>Влажность: <span id="humValue">--</span>%</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="column is-one-third">
+        <div class="card">
+          <header class="card-header">
+            <p class="card-header-title">Освещённость (LDR)</p>
+          </header>
+          <div class="card-content">
+            <p>Свет: <span id="ldrValue">--</span></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="column is-one-third">
+        <div class="card">
+          <header class="card-header">
+            <p class="card-header-title">PIR</p>
+          </header>
+          <div class="card-content">
+            <p>Движение: <span id="pirIndicator" class="indicator" style="background:red;"></span></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="column is-one-third">
+        <div class="card">
+          <header class="card-header">
+            <p class="card-header-title">Геркон</p>
+          </header>
+          <div class="card-content">
+            <p>Открытость: <span id="reedIndicator" class="indicator" style="background:red;"></span></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="column is-one-third">
+        <div class="card">
+          <header class="card-header">
+            <p class="card-header-title">Кнопка</p>
+          </header>
+          <div class="card-content">
+            <p>Нажата: <span id="buttonIndicator" class="indicator" style="background:red;"></span></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- График -->
+    <div class="box mt-5">
+      <canvas id="sensorChart" style="background:#f9f9f9;"></canvas>
+    </div>
+
+    <!-- Автоматизация -->
+    <div class="box mt-5">
+      <h2 class="subtitle">Автоматизация</h2>
+      <div class="field is-grouped is-grouped-multiline">
+        <div class="control">
+          <input id="ruleSensor" class="input" type="text" placeholder="Sensor">
+        </div>
+        <div class="control">
+          <input id="ruleCondition" class="input" type="text" placeholder="Condition">
+        </div>
+        <div class="control">
+          <input id="ruleCommand" class="input" type="text" placeholder="Command">
+        </div>
+        <div class="control">
+          <button class="button is-link" onclick="addRule()">Добавить правило</button>
+        </div>
+      </div>
+      <pre class="box has-background-light" id="rulesLog" style="height:150px; overflow:auto;"></pre>
+    </div>
+
+  </div>
+</section>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
